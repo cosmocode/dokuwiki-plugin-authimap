@@ -92,7 +92,7 @@ class auth_plugin_authimap extends DokuWiki_Auth_Plugin {
      * @param   string $user the user name
      * @return  array containing user data or false
      */
-    public function getUserData($user) {
+    public function getUserData($user, $requireGroups = false) {
         global $conf;
         $user   = $this->cleanUser($user);
         $domain = $this->getConf('domain');
