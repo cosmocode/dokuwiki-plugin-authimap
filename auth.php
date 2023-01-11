@@ -84,6 +84,10 @@ class auth_plugin_authimap extends auth_plugin_authplain {
         return false;
     }
     
+    public function getUserData($user, $requireGroups = false) {
+        return parent::getUserData($this->cleanUser($user), $requireGroups);
+    }
+    
     /**
      * Enhance function to check against duplicate emails
      *
