@@ -11,6 +11,9 @@ if(!defined('DOKU_INC')) die();
 
 class auth_plugin_authimap extends DokuWiki_Auth_Plugin {
 
+    /** @var class auth plain */
+    protected $authplain = null;
+
     /**
      * Constructor.
      */
@@ -32,19 +35,21 @@ class auth_plugin_authimap extends DokuWiki_Auth_Plugin {
             return;
         }
 
-        $this->cando['addUser']      = false; // can Users be created?
-        $this->cando['delUser']      = false; // can Users be deleted?
-        $this->cando['modLogin']     = false; // can login names be changed?
-        $this->cando['modPass']      = false; // can passwords be changed?
-        $this->cando['modName']      = false; // can real names be changed?
-        $this->cando['modMail']      = false; // can emails be changed?
-        $this->cando['modGroups']    = false; // can groups be changed?
-        $this->cando['getUsers']     = false; // can a (filtered) list of users be retrieved?
-        $this->cando['getUserCount'] = false; // can the number of users be retrieved?
-        $this->cando['getGroups']    = false; // can a list of available groups be retrieved?
+        $this->cando['addUser']      = true; // can Users be created?
+        $this->cando['delUser']      = true; // can Users be deleted?
+        $this->cando['modLogin']     = true; // can login names be changed?
+        $this->cando['modPass']      = true; // can passwords be changed?
+        $this->cando['modName']      = true; // can real names be changed?
+        $this->cando['modMail']      = true; // can emails be changed?
+        $this->cando['modGroups']    = true; // can groups be changed?
+        $this->cando['getUsers']     = true; // can a (filtered) list of users be retrieved?
+        $this->cando['getUserCount'] = true; // can the number of users be retrieved?
+        $this->cando['getGroups']    = true; // can a list of available groups be retrieved?
         $this->cando['external']     = false; // does the module do external auth checking?
         $this->cando['logout']       = true; // can the user logout again? (eg. not possible with HTTP auth)
-
+        
+        $this->$authplain = new auth_plugin_authplain();
+        
         // FIXME intialize your auth system and set success to true, if successful
         $this->success = true;
     }
@@ -75,6 +80,8 @@ class auth_plugin_authimap extends DokuWiki_Auth_Plugin {
         if($imap_login) {
             imap_close($imap_login);
             return true;
+        } else {
+            return $this->$authplain->checkPass($user, $pass);
         }
         return false;
     }
@@ -96,12 +103,43 @@ class auth_plugin_authimap extends DokuWiki_Auth_Plugin {
         global $conf;
         $user   = $this->cleanUser($user);
         $domain = $this->getConf('domain');
-
-        return array(
-            'name' => utf8_ucwords(strtr($user, '_-.', '   ')),
-            'mail' => "$user@$domain",
-            'grps' => array($conf['defaultgroup'])
-        );
+        
+        $userinfo = $this->$authplain->getUserData($user);
+        
+        if ($userinfo === false) {
+            return array(
+                'name' => utf8_ucwords(strtr($user, '_-.', '   ')),
+                'mail' => "$user@$domain",
+                'grps' => array($conf['defaultgroup'])
+            );
+        } else {
+            return array (
+                'name' => $userinfo['name'],
+                'mail' => $userinfo['mail'],
+                'grps' => $userinfo['grps']
+            );
+        }
+    }
+    
+    public function createUser($user, $pwd, $name, $mail, $grps = null) {
+        return $this->$authplain->createUser($user, $pwd, $name, $mail, $grps);
+    }
+    
+    public function modifyUser($user, $changes) {
+        return $this->$authplain->modifyUser($user, $changes);
+    }
+    
+    public function deleteUsers($users) {
+        return $this->$authplain->deleteUsers($users);
+    }
+    
+    public function getUserCount($filter = array()) {
+        return $this->$authplain->getUserCount($filter);
+    }
+    
+    public function retrieveUsers($start = 0, $limit = 0, $filter = array())
+    {
+        return $this->$authplain->retrieveUsers($start, $limit, $filter);
     }
 
     /**
