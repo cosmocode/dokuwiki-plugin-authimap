@@ -116,7 +116,7 @@ class auth_plugin_authimap extends auth_plugin_authplain {
             }
         }
 
-        $ok = parent::modifyUser($user, $changes);
+        return parent::modifyUser($user, $changes);
     }
     
     // endregion
