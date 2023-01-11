@@ -9,11 +9,11 @@
 // must be run within Dokuwiki
 if(!defined('DOKU_INC')) die();
 
-class auth_plugin_authimap extends DokuWiki_Auth_Plugin {
+class auth_plugin_authimap extends auth_plugin_authplain {
 
-    /**
-     * Constructor.
-     */
+    // region standard auth methods
+
+    /** @inheritDoc */
     public function __construct() {
         parent::__construct(); // for compatibility
 
@@ -32,19 +32,19 @@ class auth_plugin_authimap extends DokuWiki_Auth_Plugin {
             return;
         }
 
-        $this->cando['addUser']      = false; // can Users be created?
-        $this->cando['delUser']      = false; // can Users be deleted?
-        $this->cando['modLogin']     = false; // can login names be changed?
-        $this->cando['modPass']      = false; // can passwords be changed?
-        $this->cando['modName']      = false; // can real names be changed?
-        $this->cando['modMail']      = false; // can emails be changed?
-        $this->cando['modGroups']    = false; // can groups be changed?
-        $this->cando['getUsers']     = false; // can a (filtered) list of users be retrieved?
-        $this->cando['getUserCount'] = false; // can the number of users be retrieved?
-        $this->cando['getGroups']    = false; // can a list of available groups be retrieved?
+        $this->cando['addUser']      = true; // can Users be created?
+        $this->cando['delUser']      = true; // can Users be deleted?
+        $this->cando['modLogin']     = true; // can login names be changed?
+        $this->cando['modPass']      = true; // can passwords be changed?
+        $this->cando['modName']      = true; // can real names be changed?
+        $this->cando['modMail']      = true; // can emails be changed?
+        $this->cando['modGroups']    = true; // can groups be changed?
+        $this->cando['getUsers']     = true; // can a (filtered) list of users be retrieved?
+        $this->cando['getUserCount'] = true; // can the number of users be retrieved?
+        $this->cando['getGroups']    = true; // can a list of available groups be retrieved?
         $this->cando['external']     = false; // does the module do external auth checking?
         $this->cando['logout']       = true; // can the user logout again? (eg. not possible with HTTP auth)
-
+        
         // FIXME intialize your auth system and set success to true, if successful
         $this->success = true;
     }
@@ -69,39 +69,90 @@ class auth_plugin_authimap extends DokuWiki_Auth_Plugin {
         } else {
             $login = $user;
         }
+        
+        $userinfo = $this->getUserData($user);
+        if ($userinfo === false) return false;
 
         // check at imap server
         $imap_login = @imap_open($server, $login, $pass, OP_READONLY);
         if($imap_login) {
             imap_close($imap_login);
             return true;
+        } else {
+            return parent::checkPass($user, $pass);
         }
+        return false;
+    }
+    
+    /**
+     * Enhance function to check against duplicate emails
+     *
+     * @inheritdoc
+     */
+    public function createUser($user, $pwd, $name, $mail, $grps = null)
+    {
+        if ($this->getUserByEmail($mail)) {
+            msg($this->getLang('emailduplicate'), -1);
+            return false;
+        }
+
+        return parent::createUser($user, $pwd, $name, $mail, $grps);
+    }
+    
+    /**
+     * Enhance function to check against duplicate emails
+     *
+     * @inheritdoc
+     */
+    public function modifyUser($user, $changes)
+    {
+        global $conf;
+
+        if (isset($changes['mail'])) {
+            $found = $this->getUserByEmail($changes['mail']);
+            if ($found && $found != $user) {
+                msg($this->getLang('emailduplicate'), -1);
+                return false;
+            }
+        }
+
+        $ok = parent::modifyUser($user, $changes);
+    }
+    
+    // endregion
+    
+    /**
+     * Find a user by email address
+     *
+     * @param $mail
+     * @return bool|string
+     */
+    public function getUserByEmail($mail)
+    {
+        if ($this->users === null) {
+            parent::loadUserData();
+        }
+        $mail = strtolower($mail);
+
+        foreach ($this->users as $user => $userinfo) {
+            if (strtolower($userinfo['mail']) == $mail) return $user;
+        }
+
         return false;
     }
 
     /**
-     * Return user info
+     * Fall back to plain auth strings
      *
-     * Returns info about the given user needs to contain
-     * at least these fields:
-     *
-     * name string  full name of the user
-     * mail string  email addres of the user
-     * grps array   list of groups the user is in
-     *
-     * @param   string $user the user name
-     * @return  array containing user data or false
+     * @inheritdoc
      */
-    public function getUserData($user, $requireGroups = false) {
-        global $conf;
-        $user   = $this->cleanUser($user);
-        $domain = $this->getConf('domain');
+    public function getLang($id)
+    {
+        $result = parent::getLang($id);
+        if ($result) return $result;
 
-        return array(
-            'name' => utf8_ucwords(strtr($user, '_-.', '   ')),
-            'mail' => "$user@$domain",
-            'grps' => array($conf['defaultgroup'])
-        );
+        $parent = new auth_plugin_authplain();
+        return $parent->getLang($id);
     }
 
     /**
