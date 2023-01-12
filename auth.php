@@ -84,6 +84,11 @@ class auth_plugin_authimap extends auth_plugin_authplain {
         return false;
     }
     
+    /**
+     * Enhance function to sanitize username
+     *
+     * @inheritdoc
+     */
     public function getUserData($user, $requireGroups = false) {
         return parent::getUserData($this->cleanUser($user), $requireGroups);
     }
