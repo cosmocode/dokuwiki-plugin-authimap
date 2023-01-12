@@ -70,8 +70,8 @@ class auth_plugin_authimap extends auth_plugin_authplain {
             $login = $user;
         }
         
-        $userinfo = $this->getUserData($user);
-        if ($userinfo === false) return false;
+        $localUser = $this->getUserByEmail("$user@$domain");
+        if (!$localUser) return false;
 
         // check at imap server
         $imap_login = @imap_open($server, $login, $pass, OP_READONLY);
@@ -79,7 +79,8 @@ class auth_plugin_authimap extends auth_plugin_authplain {
             imap_close($imap_login);
             return true;
         } else {
-            return parent::checkPass($user, $pass);
+            $localUserInfo = $auth->getUserData($localUser);
+            return parent::checkPass($localUserInfo['user'], $pass);
         }
         return false;
     }
