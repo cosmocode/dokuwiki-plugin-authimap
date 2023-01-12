@@ -1,6 +1,6 @@
 <?php
 /**
- * English language file for oauth plugin
+ * English language file for authimap plugin
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
